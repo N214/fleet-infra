@@ -16,7 +16,6 @@ spec:
         namespace: flux-system
       version: "1.19.2" 
   install:
-    targetNamespace: kube-system
     createNamespace: false
   values:
     cilium:
