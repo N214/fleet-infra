@@ -9,7 +9,7 @@ metadata:
   name: cloudflare-api-token
 type: Opaque
 stringData:
-  api-token: "2HR27a9cH4Otruvajpd8mAbCa8Z3WwogRBKUEvR6"
+  api-token: "cfut_hGOUxyMnDwpZSwVc9UkVgxZpx0U3gDBopQF9PvJv2cbbcb1f"
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
