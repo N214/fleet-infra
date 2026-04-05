@@ -6,6 +6,21 @@ spec:
   blocks:
   - cidr: 129.153.58.143/32
 ---
+apiVersion: cilium.io/v2
+kind: CiliumEgressGatewayPolicy
+metadata:
+  name: global-egress
+spec:
+  selectors:
+  - podSelector: {}        # all pods
+    namespaceSelector: {}  # all namespaces
+  destinationCIDRs:
+  - 0.0.0.0/0              # all destinations (internet)
+  egressGateway:
+    nodeSelector:
+      matchLabels:
+        node.kubernetes.io/instance-type: k3s
+---
 apiVersion: "cilium.io/v2"
 kind: CiliumNetworkPolicy
 metadata:
