@@ -30,7 +30,7 @@ spec:
       port: 443
       tls:
         mode: Terminate
-        certificateRef:
+        certificateRefs:
           name: cloudflare-cert
           kind: Secret
       allowedRoutes:
