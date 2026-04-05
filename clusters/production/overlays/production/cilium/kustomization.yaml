@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
   - ../../../base/cilium
   - gateway.yaml
+
+namespace: kube-system

@@ -4,7 +4,7 @@ kind: GatewayClass
 metadata:
   name: cilium
 spec:
-  controller: io.cilium.gateway
+  controllerName: io.cilium/gateway-controller
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
