@@ -2,4 +2,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - flux-system
-  - overlays/production/*
+  - overlays/production/cilium
+  - overlays/production/cert-manager
