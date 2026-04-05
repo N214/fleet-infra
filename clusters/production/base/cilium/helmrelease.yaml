@@ -25,6 +25,7 @@ spec:
       enabled: true
     cluster:
       name: cilium
+      id: 1
     autoDirectNodeRoutes: true
     bpf:
       masquerade: true
@@ -92,4 +93,4 @@ spec:
     prometheus:
       enabled: false
       serviceMonitor:
-        enabled: false
+        enabled: true
