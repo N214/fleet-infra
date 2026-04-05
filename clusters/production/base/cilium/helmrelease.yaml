@@ -33,6 +33,8 @@ spec:
       enabled: true
     gatewayAPI:
       enabled: true
+      hostNetwork:
+        enabled: true
       externalTrafficPolicy: Local
     hubble:
       ui:
