@@ -6,15 +6,13 @@ metadata:
 spec:
   endpointSelector: {}  # selects all pods in this namespace
   ingress:
-  - toEntities:
+  - fromEntities:
     - cluster
-    - world
-    - host
   egress:
-  - toEntities:
-    - cluster
-    - world
-    - host
+    - toEntities:
+      - cluster
+      - world
+      - host
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
