@@ -31,8 +31,8 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
+        - kind: Secret
           name: cloudflare-cert
-          kind: Secret
       allowedRoutes:
         namespaces:
           from: All
