@@ -39,6 +39,7 @@ spec:
         enabled: true
       relay:
         enabled: true
+        affinity: {}
       enableOpenMetrics: true
       metrics:
         enabled:
