@@ -15,4 +15,4 @@ spec:
         value: /
     backendRefs:
     - name: flux-operator 
-      port: 8080
+      port: 9080
