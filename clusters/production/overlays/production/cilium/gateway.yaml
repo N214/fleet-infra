@@ -7,7 +7,7 @@ spec:
   - cidr: 129.153.58.143/32
 ---
 apiVersion: "cilium.io/v2"
-kind: CiliumNetworkPolicy
+kind: CiliumClusterwideNetworkPolicy
 metadata:
   name: "hubble-dns-visibility-safe"
 spec:
