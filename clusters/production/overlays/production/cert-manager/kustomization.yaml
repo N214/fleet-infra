@@ -3,5 +3,9 @@ kind: Kustomization
 resources:
   - ../../../base/cert-manager
   - cluster-issuer.yaml
-
+patches:
+  - path: helmrelease-patch.yaml
+    target:
+      kind: HelmRelease
+      name: cert-manager
 namespace: cert-manager
