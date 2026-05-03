@@ -21,7 +21,6 @@ spec:
       enabled: true
       hostNetwork:
         enabled: true
-      externalTrafficPolicy: Local
     hubble:
       ui:
         enabled: true
