@@ -20,7 +20,7 @@ spec:
     gatewayAPI:
       enabled: true
       hostNetwork:
-        enabled: true
+        enabled: false
     hubble:
       ui:
         enabled: true
@@ -30,13 +30,13 @@ spec:
       enableOpenMetrics: true
       metrics:
         enabled:
-          - 'dns:query;ignore_metrics=dns'
+          - "dns:query;ignore_metrics=dns"
           - drop:sourceContext=identity;destinationContext=identity
           - tcp
           - flow
           - "port-distribution"
           - icmp
-          - 'httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction;sourceContext=workload-name|reserved-identity;destinationContext=workload-name|reserved-identity'
+          - "httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction;sourceContext=workload-name|reserved-identity;destinationContext=workload-name|reserved-identity"
         serviceMonitor:
           enabled: false
       dashboards:
