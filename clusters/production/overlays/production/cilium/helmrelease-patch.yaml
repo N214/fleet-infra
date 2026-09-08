@@ -15,6 +15,7 @@ spec:
     autoDirectNodeRoutes: true
     bpf:
       masquerade: true
+      hostLegacyRouting: true
     envoyConfig:
       enabled: true
     gatewayAPI:
