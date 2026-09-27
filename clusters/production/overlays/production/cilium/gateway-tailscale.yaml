@@ -1,0 +1,23 @@
+# Exposes the Cilium Gateway (kube-system/gateway) on the tailnet through the Tailscale operator.
+# ExternalName makes the operator proxy forward to the Gateway Service itself, so Cilium L7 LB
+# handles it (a selectorless Service pointing at NodePorts cannot be chained under KPR).
+# Deleting this Service re-creates the tailnet device with a new IP. See AGENT.md.
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-tailscale
+  namespace: kube-system
+  annotations:
+    tailscale.com/expose: "true"
+spec:
+  type: ExternalName
+  externalName: cilium-gateway-gateway.kube-system.svc.cluster.local
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 443
