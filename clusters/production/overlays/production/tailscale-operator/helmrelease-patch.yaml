@@ -1,0 +1,12 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tailscale-operator
+  namespace: flux-system
+spec:
+  values:
+    # The operator chart and image stop at 1.102.4; 1.102.5 only ships the proxy
+    # (containerboot) image. Proxies default to the operator version otherwise.
+    proxyConfig:
+      image:
+        tag: v1.102.5

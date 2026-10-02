@@ -218,8 +218,10 @@ through netfilter, which Tailscale's rules rely on.
 
 ## Follow-ups (not cleanup)
 
-- Move the Tailscale operator into Flux: a HelmRepository for `https://pkgs.tailscale.com/helmcharts`, a
-  HelmRelease, and the OAuth secret managed with SOPS or created by hand.
+- Rotate the Cloudflare API token committed in `overlays/production/cert-manager/cluster-issuer.yaml`, then
+  keep it out of Git (SOPS with Flux decryption, or a hand-made Secret). It's in the Git history, so treat it
+  as exposed.
+- The Tailscale operator moved to Flux on 2026-10-01 (see AGENT.md). Only its OAuth Secret is created by hand.
 - Manage `hosts/vm/` with config management, or at least reinstall it whenever the node is rebuilt.
 
 ## Keep (in use)

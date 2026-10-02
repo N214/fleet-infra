@@ -20,7 +20,7 @@ Gateway, Envoy or Tailscale networking.
 | k3s | `flannel-backend: none`, `disable-kube-proxy`, `disable-network-policy`, `disable: [traefik, servicelb]` (`/etc/rancher/k3s/config.yaml`) |
 | Cilium | 1.19.x via HelmRelease. kube-proxy replacement, native routing, pod CIDR `10.0.0.0/16`, Gateway API (not host-network), external `cilium-envoy` DaemonSet, Hubble relay and UI |
 | TLS | cert-manager, ClusterIssuer `cloudflare-issuer` (ACME DNS-01 via Cloudflare), Certificate `kube-system/cloudflare-cert` for `*.ntcloud.dev` |
-| Tailscale | Tailnet `tail8d4c27.ts.net`. `tailscaled` runs on the host; the Tailscale Kubernetes operator runs in namespace `tailscale` |
+| Tailscale | Tailnet `tail8d4c27.ts.net`. Host `tailscaled` 1.102.4 (apt). Kubernetes operator 1.102.4 via Flux HelmRelease `tailscale/tailscale-operator`; proxies run `tailscale/tailscale:v1.102.5` |
 | DNS | Cloudflare zone `ntcloud.dev`. `*.ntcloud.dev` is an `A` record to `100.114.165.114`, **DNS only** |
 
 ## Repository layout
@@ -28,19 +28,27 @@ Gateway, Envoy or Tailscale networking.
 | Path | Contents |
 |---|---|
 | `clusters/production/kustomization.yaml` | Root: `flux-system`, `overlays/production/cilium`, `overlays/production/cert-manager` |
-| `clusters/production/flux-system/` | HelmRepositories (`cilium`, `jetstack`), HTTPRoute `fluxcd.ntcloud.dev` to `flux-operator:9080` |
+| `clusters/production/flux-system/` | HelmRepositories (`cilium`, `jetstack`, `tailscale`), HTTPRoute `fluxcd.ntcloud.dev` to `flux-operator:9080` |
 | `clusters/production/base/cilium/` | Cilium HelmRelease (chart version) |
 | `clusters/production/overlays/production/cilium/helmrelease-patch.yaml` | Cilium Helm values |
 | `clusters/production/overlays/production/cilium/gateway.yaml` | LB IP pool, GatewayClass `cilium`, Certificate, Gateway `kube-system/gateway`, HTTPRoute `hubble.ntcloud.dev` |
 | `clusters/production/overlays/production/cilium/gateway-tailscale.yaml` | Puts the Gateway on the tailnet (see below) |
 | `clusters/production/overlays/production/cert-manager/` | cert-manager values and the ClusterIssuer |
+| `clusters/production/base/tailscale-operator/` | Tailscale operator HelmRelease (chart version, OAuth `valuesFrom`) |
+| `clusters/production/overlays/production/tailscale-operator/` | Namespace `tailscale` and operator values (proxy image tag) |
 | `hosts/vm/` | Host config that Flux does **not** apply; install it by hand |
 | [`CLEANUP.md`](CLEANUP.md) | Unused resources and how to remove them |
 
 ### Not in this repo
 
-- The Tailscale operator: Helm release `tailscale-operator` in namespace `tailscale`, with OAuth secret `operator-oauth`.
-- Secrets such as `cert-manager/cloudflare-api-token` (the DNS-01 token). Never commit them.
+- Secret `tailscale/tailscale-operator-oauth` (keys `clientId`, `clientSecret`): the operator's Tailscale OAuth
+  client, fed to the HelmRelease through `valuesFrom`. The chart renders it into `operator-oauth`. To recreate it,
+  make an OAuth client in the Tailscale admin console (Devices write and Auth Keys write scopes, tag
+  `tag:k8s-operator`), then run
+  `kubectl -n tailscale create secret generic tailscale-operator-oauth --from-literal=clientId=... --from-literal=clientSecret=...`.
+- **Warning:** `overlays/production/cert-manager/cluster-issuer.yaml` *does* contain the Cloudflare DNS-01 API
+  token in plain text. Rotate it and move it out of Git (SOPS, or a hand-made Secret like the one above).
+  Don't commit new secrets.
 - `tail-secret.yaml` at the repo root: an untracked manifest, including an auth key, for the legacy `tailscale-subnet` pod. See `CLEANUP.md`.
 - Host configuration: `tailscaled`, the k3s config, `/etc/sysctl.d` (a copy lives in `hosts/vm/`).
 
@@ -70,6 +78,17 @@ tailnet device -> 100.114.165.114:80/443     Tailscale device "kube-system-gatew
   repo, since Flux prunes), the Secret is deleted, the operator is uninstalled, or the machine is removed
   in the Tailscale admin console. If it happens, update the DNS record, or give the new device the old IP
   in the admin console (**Machines → Edit IP address**).
+
+### Upgrading Tailscale
+
+- **Operator:** bump `spec.chart.spec.version` in `base/tailscale-operator/helmrelease.yaml`. Versions are
+  listed at `https://pkgs.tailscale.com/helmcharts/index.yaml`.
+- **Proxies:** by default they use the operator's version. `proxyConfig.image.tag` in the overlay pins them
+  separately; it was set because 1.102.5 shipped only the proxy image. Remove the pin once the chart
+  catches up.
+- **What a bump restarts:** the proxy pods, for a few seconds. The tailnet IPs stay the same because device
+  state lives in Secrets.
+- **Host `tailscaled`:** upgrade it separately with `sudo apt-get install --only-upgrade tailscale`.
 
 ## Known pitfalls
 

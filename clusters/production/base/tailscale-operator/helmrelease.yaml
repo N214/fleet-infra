@@ -1,0 +1,32 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tailscale-operator
+  namespace: flux-system
+spec:
+  interval: 5m
+  # Adopts the release originally installed by hand with `helm install tailscale-operator`.
+  releaseName: tailscale-operator
+  targetNamespace: tailscale
+  storageNamespace: tailscale
+
+  chart:
+    spec:
+      chart: tailscale-operator
+      version: "1.102.4"
+      sourceRef:
+        kind: HelmRepository
+        name: tailscale
+        namespace: flux-system
+  install:
+    createNamespace: false
+  # OAuth client for the operator. The Secret is created by hand (not in Git); see AGENT.md.
+  valuesFrom:
+    - kind: Secret
+      name: tailscale-operator-oauth
+      valuesKey: clientId
+      targetPath: oauth.clientId
+    - kind: Secret
+      name: tailscale-operator-oauth
+      valuesKey: clientSecret
+      targetPath: oauth.clientSecret
