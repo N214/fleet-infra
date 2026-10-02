@@ -6,7 +6,9 @@ Gateway, Envoy or Tailscale networking.
 
 ## Scope
 
-- Flux 2.8.x, run by Flux Operator 0.61.0 ([`flux-instance.yaml`](flux-instance.yaml), applied by hand), syncs **`clusters/production`** from
+- Flux 2.8.x, run by Flux Operator 0.61.0 and defined by
+  [`clusters/production/flux-system/flux-instance.yaml`](clusters/production/flux-system/flux-instance.yaml)
+  (self-managed: Flux applies its own FluxInstance), syncs **`clusters/production`** from
   `main` every 10 minutes with pruning on. **Pushing to `main` deploys, and deleting a manifest deletes
   the object.**
 - Some pieces live outside Git and are managed by hand; see [Not in this repo](#not-in-this-repo).
@@ -85,11 +87,17 @@ tailnet device -> 100.114.165.114:80/443     Tailscale device "kube-system-gatew
   operator itself through a HelmRelease that runs as the operator's own ServiceAccount. The CRDs have
   `helm.sh/resource-policy: keep`. Release notes:
   https://github.com/controlplaneio-fluxcd/flux-operator/releases
-- **Flux controllers:** these come from `spec.distribution.version` in `flux-instance.yaml` (`2.8.x` picks up
-  patch releases automatically). That file is outside `clusters/production`, so apply it by hand:
-  `kubectl apply -f flux-instance.yaml`.
-- **Recovery:** if a bad operator release breaks Flux, roll back by hand with
-  `helm -n flux-system rollback flux-operator`, then fix the tag in Git.
+- **Flux controllers:** these come from `spec.distribution.version` in
+  `clusters/production/flux-system/flux-instance.yaml` (`2.8.x` picks up patch releases automatically). Commit
+  the change; Flux applies the FluxInstance and the operator rolls out the controllers.
+- **Self-management:** the FluxInstance also defines the `flux-system` GitRepository and Kustomization that
+  apply it. A bad `spec.sync` (URL, ref, path, secret) or `distribution` can stop Flux from pulling the fix,
+  so review those carefully. It has `kustomize.toolkit.fluxcd.io/prune: disabled`, so deleting the file
+  leaves Flux running.
+- **Recovery:** if a bad operator release breaks Flux, run `helm -n flux-system rollback flux-operator`. If a
+  bad FluxInstance breaks it, apply a good version from Git by hand with
+  `kubectl apply --server-side --field-manager=kustomize-controller -f clusters/production/flux-system/flux-instance.yaml`.
+  Then fix Git.
 
 ### Upgrading Tailscale
 

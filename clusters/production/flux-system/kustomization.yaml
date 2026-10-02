@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - helmrepo.yaml
   - flux-operator.yaml
+  - flux-instance.yaml
   - httproute.yaml
 
 namespace: flux-system

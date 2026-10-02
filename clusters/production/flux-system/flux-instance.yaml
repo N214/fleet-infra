@@ -1,8 +1,14 @@
+# Flux itself: controller versions and the Git sync for this repo. Applied by the flux-system
+# Kustomization it defines (self-managed). A broken change here can stop Flux from syncing,
+# recover with `kubectl apply -f` of a good version (see AGENT.md).
 apiVersion: fluxcd.controlplane.io/v1
 kind: FluxInstance
 metadata:
   name: flux
   namespace: flux-system
+  annotations:
+    # Never let Flux garbage-collect itself: removing this file from Git must not uninstall Flux.
+    kustomize.toolkit.fluxcd.io/prune: disabled
 spec:
   distribution:
     version: "2.8.x"
