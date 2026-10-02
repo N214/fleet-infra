@@ -13,7 +13,7 @@ operator 1.98.4). **Nothing below has been removed yet.**
 
 | # | Item | Where | Risk |
 |---|---|---|---|
-| 1 | `tailscale-subnet` pod and its Secret, ServiceAccount, Role and RoleBinding | cluster (created by hand) | Low |
+| 1 | ~~`tailscale-subnet` pod and its Secret, ServiceAccount, Role and RoleBinding~~ **Done 2026-10-02** | cluster (created by hand) | Low |
 | 2 | Service `kube-system/hubble-ui-gateway` | cluster (created by hand) | None |
 | 3 | Secret `kube-system/cloudflare-key` | cluster | Low |
 | 4 | ClusterMesh API server | Cilium values | Low |
@@ -33,7 +33,12 @@ operator 1.98.4). **Nothing below has been removed yet.**
 
 ## Cluster
 
-### 1. `tailscale-subnet` pod and its RBAC
+### 1. `tailscale-subnet` pod and its RBAC (done 2026-10-02)
+
+> Removed on 2026-10-02. The device was logged out of the tailnet (`tailscale logout`) and no longer appears.
+> The pod, Secret, ServiceAccount, Role, RoleBinding and `tail-secret.yaml` were deleted; that file was never
+> committed to either repo. **Still to do by hand:** revoke the auth key it used in the Tailscale admin console
+> (Settings → Keys).
 
 - **Evidence:** this is a bare Pod (no controller) created on 2026-09-05 from
   `ghcr.io/tailscale/tailscale:latest` with `TS_ROUTES=10.43.0.0/16`. That route was never approved in the
@@ -191,7 +196,7 @@ operator 1.98.4). **Nothing below has been removed yet.**
 - `~/Kube/apps/cert-manager/cloudflare-api-token.yaml` is an untracked copy of the Cloudflare token Secret
   (namespace `default`, which doesn't exist in the cluster). Delete it, and rotate the token if the file
   was ever pushed or shared.
-- `tail-secret.yaml` in this repo (item 1): delete it, or at least add it to `.gitignore`.
+- `tail-secret.yaml` in this repo (item 1): deleted 2026-10-02.
 
 ## Git
 

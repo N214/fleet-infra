@@ -51,7 +51,6 @@ Gateway, Envoy or Tailscale networking.
 - **Warning:** `overlays/production/cert-manager/cluster-issuer.yaml` *does* contain the Cloudflare DNS-01 API
   token in plain text. Rotate it and move it out of Git (SOPS, or a hand-made Secret like the one above).
   Don't commit new secrets.
-- `tail-secret.yaml` at the repo root: an untracked manifest, including an auth key, for the legacy `tailscale-subnet` pod. See `CLEANUP.md`.
 - Host configuration: `tailscaled`, the k3s config, `/etc/sysctl.d` (a copy lives in `hosts/vm/`).
 
 ## Tailnet access to cluster services
