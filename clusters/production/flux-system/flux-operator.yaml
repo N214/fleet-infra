@@ -1,0 +1,29 @@
+# Flux Operator, managed by Flux itself (originally installed by hand with `helm install`).
+# Upgrade by bumping ref.tag. The CRDs are annotated helm.sh/resource-policy: keep, so removing
+# this HelmRelease does not delete the FluxInstance.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: flux-operator
+  namespace: flux-system
+spec:
+  interval: 30m
+  url: oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: "0.61.0"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: flux-operator
+  namespace: flux-system
+spec:
+  interval: 30m
+  releaseName: flux-operator
+  serviceAccountName: flux-operator
+  chartRef:
+    kind: OCIRepository
+    name: flux-operator

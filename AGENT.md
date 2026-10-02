@@ -6,7 +6,7 @@ Gateway, Envoy or Tailscale networking.
 
 ## Scope
 
-- Flux (flux-operator, [`flux-instance.yaml`](flux-instance.yaml)) syncs **`clusters/production`** from
+- Flux 2.8.x, run by Flux Operator 0.61.0 ([`flux-instance.yaml`](flux-instance.yaml), applied by hand), syncs **`clusters/production`** from
   `main` every 10 minutes with pruning on. **Pushing to `main` deploys, and deleting a manifest deletes
   the object.**
 - Some pieces live outside Git and are managed by hand; see [Not in this repo](#not-in-this-repo).
@@ -28,7 +28,7 @@ Gateway, Envoy or Tailscale networking.
 | Path | Contents |
 |---|---|
 | `clusters/production/kustomization.yaml` | Root: `flux-system`, `overlays/production/cilium`, `overlays/production/cert-manager` |
-| `clusters/production/flux-system/` | HelmRepositories (`cilium`, `jetstack`, `tailscale`), HTTPRoute `fluxcd.ntcloud.dev` to `flux-operator:9080` |
+| `clusters/production/flux-system/` | HelmRepositories (`cilium`, `jetstack`, `tailscale`), Flux Operator OCIRepository and HelmRelease (`flux-operator.yaml`), HTTPRoute `fluxcd.ntcloud.dev` to `flux-operator:9080` |
 | `clusters/production/base/cilium/` | Cilium HelmRelease (chart version) |
 | `clusters/production/overlays/production/cilium/helmrelease-patch.yaml` | Cilium Helm values |
 | `clusters/production/overlays/production/cilium/gateway.yaml` | LB IP pool, GatewayClass `cilium`, Certificate, Gateway `kube-system/gateway`, HTTPRoute `hubble.ntcloud.dev` |
@@ -78,6 +78,18 @@ tailnet device -> 100.114.165.114:80/443     Tailscale device "kube-system-gatew
   repo, since Flux prunes), the Secret is deleted, the operator is uninstalled, or the machine is removed
   in the Tailscale admin console. If it happens, update the DNS record, or give the new device the old IP
   in the admin console (**Machines → Edit IP address**).
+
+### Upgrading Flux
+
+- **Flux Operator:** bump `ref.tag` in `clusters/production/flux-system/flux-operator.yaml`. Flux upgrades the
+  operator itself through a HelmRelease that runs as the operator's own ServiceAccount. The CRDs have
+  `helm.sh/resource-policy: keep`. Release notes:
+  https://github.com/controlplaneio-fluxcd/flux-operator/releases
+- **Flux controllers:** these come from `spec.distribution.version` in `flux-instance.yaml` (`2.8.x` picks up
+  patch releases automatically). That file is outside `clusters/production`, so apply it by hand:
+  `kubectl apply -f flux-instance.yaml`.
+- **Recovery:** if a bad operator release breaks Flux, roll back by hand with
+  `helm -n flux-system rollback flux-operator`, then fix the tag in Git.
 
 ### Upgrading Tailscale
 
