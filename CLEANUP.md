@@ -18,7 +18,7 @@ operator 1.98.4). **Nothing below has been removed yet.**
 | 3 | Secret `kube-system/cloudflare-key` | cluster | Low |
 | 4 | ClusterMesh API server | Cilium values | Low |
 | 5 | ServiceMonitor CRD | Cilium values and cluster | Low |
-| 6 | Namespace `monitoring` and the unused `hubble.dashboards` values | cluster and Cilium values | None |
+| 6 | ~~Namespace `monitoring`~~ (now in use) and the unused `hubble.dashboards` values | Cilium values | None |
 | 7 | Egress Gateway | Cilium values | Low |
 | 8 | Envoy settings left over from host-network mode | Cilium values | Low |
 | 9 | `cilium-node-init` DaemonSet | Cilium values | Medium |
@@ -94,11 +94,12 @@ operator 1.98.4). **Nothing below has been removed yet.**
 
 ### 6. Namespace `monitoring` and the `hubble.dashboards` values
 
-- **Evidence:** namespace `monitoring` contains nothing but `kube-root-ca.crt`. The `hubble.dashboards`
-  block in the values points at it, but Cilium's chart doesn't read that key (it reads
-  `hubble.metrics.dashboards`), so the block has no effect.
-- **Remove:** delete the `hubble.dashboards` block, then run `kubectl delete namespace monitoring`. If you
-  plan to add Grafana, keep the namespace and rename the key to `hubble.metrics.dashboards` instead.
+- **Update 2026-10-10:** namespace `monitoring` now runs the monitoring stack (see AGENT.md); **don't delete it**.
+- **Evidence:** the `hubble.dashboards` block in the Cilium values points at `monitoring`, but Cilium's chart
+  doesn't read that key (it reads `hubble.metrics.dashboards`), so the block has no effect.
+- **Change:** delete the `hubble.dashboards` block. To get the Hubble dashboards in Grafana, have the OTel collector
+  scrape the Hubble metrics (`:9965` on each node), then set `hubble.metrics.dashboards.enabled: true` with
+  `namespace: monitoring`.
 
 ### 7. Egress Gateway
 
@@ -238,5 +239,7 @@ through netfilter, which Tailscale's rules rely on.
   CiliumNetworkPolicy `flux-system/allow-flux`, and namespace `cilium-secrets`.
 - **Secrets:** `cert-manager/cloudflare-api-token`, `cert-manager/cloudflare-key` and
   `kube-system/cloudflare-cert`.
+- **Monitoring:** everything in namespace `monitoring`: the OTel collector, node-exporter, kube-state-metrics,
+  the VictoriaMetrics operator, VMSingle, vmauth and Grafana, plus Secrets `grafana-admin` and `vmuser-*`.
 - **Other:** IngressClass `tailscale`, which is unused but ships with the operator chart, and the Docker
   container `hysteria-server`.
