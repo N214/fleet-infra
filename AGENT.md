@@ -146,8 +146,9 @@ apps ──OTLP :4317/:4318──────────▶                    
   (the chart default is a 20Gi `local-path` PVC).
 - **`cluster` label:** vmauth adds it. Each cluster has a VMUser whose route appends
   `?extra_label=cluster=<name>`. Collectors don't set it themselves, so one cluster can't write under another's name.
-- **Grafana:** user `admin`, password in Secret `monitoring/grafana-admin`. It has two datasources:
-  `VictoriaMetrics` (Prometheus type, the default) and `VictoriaMetrics (DS)` (MetricsQL plugin). The chart's
+- **Grafana:** user `admin`, password in Secret `monitoring/grafana-admin`. It has three datasources:
+  `VictoriaMetrics` (Prometheus type, the default), `VictoriaMetrics (DS)` (MetricsQL plugin) and
+  `VictoriaMetrics (high-res)` (see [High-resolution metrics](#high-resolution-metrics)). The chart's
   sync-job downloads the dashboards from GitHub on every install and upgrade: Node Exporter Full,
   Kubernetes / Views / {Global, Namespaces, Nodes, Pods}, and VictoriaMetrics - single-node. Grafana isn't
   persistent either, so dashboards edited in the UI are lost on restart; keep them in Git.
@@ -166,6 +167,23 @@ apps ──OTLP :4317/:4318──────────▶                    
    leaving through `tailscale0` (as here), or it uses a Tailscale operator egress Service.
 4. A cluster with more than one node must scrape kube-state-metrics from one collector only, for example a
    separate deployment-mode collector. Today every DaemonSet pod scrapes it.
+
+### High-resolution metrics
+
+VictoriaMetrics stores millisecond timestamps, and Grafana can query down to a 1 ms step. Use the
+`VictoriaMetrics (high-res)` datasource (uid `VictoriaMetricsHighRes`) for such series:
+
+- **Step floor:** Grafana's step is the time range divided by the panel width, but never below the panel's
+  *Min interval*, or else the datasource's `timeInterval`. A Prometheus-type datasource without `timeInterval`
+  (like `VictoriaMetrics`) uses 15s, so it can't zoom below 15s steps. The high-res datasource sets `1ms`.
+- **Newest samples:** VictoriaMetrics hides the last 30s from queries (`-search.latencyOffset`). The high-res
+  datasource sends `latency_offset=1s` with each query instead of changing the global flag.
+- **Zoomed-out panels** return one sample per step, so short spikes disappear. Wrap the series in
+  `max_over_time(m[$__interval])` (or `min_`/`avg_over_time`) to keep them.
+- **Ingestion:** scrapes and OTel SDK exporters produce one point per collection interval. Write each sample with
+  its own timestamp instead, e.g. JSON lines to `/api/v1/import` on `vmsingle-vm-stack:8428`. vmauth and the
+  `metrics.ntcloud.dev` HTTPRoute only route `/opentelemetry/`, so pushing from outside the cluster needs another
+  VMUser path and route rule. Don't set `-dedup.minScrapeInterval`: it would collapse the samples.
 
 ### Monitoring gotchas
 

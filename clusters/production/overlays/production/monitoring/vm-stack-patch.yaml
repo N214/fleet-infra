@@ -84,6 +84,22 @@ spec:
         victoriametrics-operator:
           enabled: false
 
+    # Millisecond drill-down (AGENT.md "High-resolution metrics"). Added next to the chart-managed VictoriaMetrics
+    # and VictoriaMetrics (DS) datasources, which the bundled dashboards keep using unchanged.
+    defaultDatasources:
+      extra:
+        - name: VictoriaMetrics (high-res)
+          uid: VictoriaMetricsHighRes
+          type: prometheus
+          access: proxy
+          url: http://vmsingle-vm-stack.monitoring.svc.cluster.local.:8428
+          isDefault: false
+          jsonData:
+            # Smallest step Grafana may use; Prometheus-type datasources fall back to 15s when it's unset.
+            timeInterval: 1ms
+            # VictoriaMetrics hides the newest 30s (-search.latencyOffset); override it for this datasource only.
+            customQueryParameters: latency_offset=1s
+
     grafana:
       # Adds the "VictoriaMetrics (DS)" datasource (MetricsQL) next to the default Prometheus-type one.
       plugins:
