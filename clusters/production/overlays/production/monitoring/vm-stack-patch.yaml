@@ -1,0 +1,139 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vm-stack
+  namespace: flux-system
+spec:
+  values:
+    # Stable names: VMSingle vm-stack -> Service vmsingle-vm-stack:8428, VMAuth -> vmauth-vm-stack:8427.
+    fullnameOverride: vm-stack
+
+    victoria-metrics-operator:
+      # Nothing scrapes VMServiceScrapes (no vmagent; the OTel collector is the only collector).
+      serviceMonitor:
+        enabled: false
+
+    vmsingle:
+      spec:
+        retentionPeriod: "7d"
+        # storage: null is set by a JSON6902 patch in kustomization.yaml (Kustomize drops nulls in this file).
+        extraArgs:
+          # OTel-compatible ingestion: OTLP names/labels converted to Prometheus style (k8s.pod.name -> k8s_pod_name,
+          # units and _total suffixes). Idempotent for names that are already Prometheus-style.
+          opentelemetry.usePrometheusNaming: "true"
+          # No otel_scope_* labels, so series stay identical across collector upgrades.
+          opentelemetry.promoteScopeMetadata: "false"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 1Gi
+
+    # Single ingest point for every cluster's collector. Each VMUser adds its cluster=<name> label (extra_label),
+    # so clusters cannot write under another cluster's name. Exposed on the tailnet as metrics.ntcloud.dev.
+    vmauth:
+      enabled: true
+      spec:
+        selectAllByDefault: true
+        unauthorizedUserAccessSpec:
+          disabled: true
+
+    # The OTel collector replaces vmagent and the chart's own exporters (they come from the agent bundle).
+    vmagent:
+      enabled: false
+    prometheus-node-exporter:
+      enabled: false
+    kube-state-metrics:
+      enabled: false
+    kubelet:
+      enabled: false
+    kubeApiServer:
+      enabled: false
+    kubeControllerManager:
+      enabled: false
+    coreDns:
+      enabled: false
+    kubeEtcd:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+
+    # Alerting: later.
+    vmalert:
+      enabled: false
+    alertmanager:
+      enabled: false
+    defaultRules:
+      enabled: false
+
+    # Dashboards: node-exporter-full, k8s-views-{global,namespaces,nodes,pods}, VictoriaMetrics single-node.
+    defaultDashboards:
+      dashboards:
+        victoriametrics-operator:
+          enabled: false
+        grafana-overview:
+          enabled: false
+      sources:
+        # Defaults to the (disabled) node-exporter subchart toggle; the agent bundle provides node-exporter.
+        node-exporter-full:
+          enabled: true
+        # Needs recording rules (vmalert): enable together with alerting.
+        kube-prometheus:
+          enabled: false
+        victoriametrics-operator:
+          enabled: false
+
+    grafana:
+      # Adds the "VictoriaMetrics (DS)" datasource (MetricsQL) next to the default Prometheus-type one.
+      plugins:
+        - victoriametrics-metrics-datasource
+      # Secret created by hand (not in Git): keys admin-user, admin-password.
+      admin:
+        existingSecret: grafana-admin
+      vmScrape:
+        enabled: false
+      sidecar:
+        dashboards:
+          # Cluster selector on the dashboards (every series carries cluster=<name>).
+          multicluster: true
+      grafana.ini:
+        server:
+          root_url: https://grafana.ntcloud.dev
+      route:
+        main:
+          enabled: true
+          hostnames:
+            - grafana.ntcloud.dev
+          parentRefs:
+            - name: gateway
+              namespace: kube-system
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+
+    # Rendered by the chart so the VMUser CRD (from the operator subchart) exists before the object.
+    # One VMUser per cluster; the operator generates the password into Secret vmuser-<name>.
+    extraObjects:
+      - apiVersion: operator.victoriametrics.com/v1beta1
+        kind: VMUser
+        metadata:
+          name: production
+          namespace: monitoring
+        spec:
+          username: production
+          generatePassword: true
+          targetRefs:
+            - crd:
+                kind: VMSingle
+                name: vm-stack
+                namespace: monitoring
+              paths:
+                - /opentelemetry/v1/metrics
+              query_args:
+                - name: extra_label
+                  values:
+                    - cluster=production

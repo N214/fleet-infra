@@ -1,0 +1,178 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: otel
+  namespace: flux-system
+spec:
+  interval: 5m
+  releaseName: otel
+  targetNamespace: monitoring
+
+  chart:
+    spec:
+      chart: opentelemetry-collector
+      version: "0.175.1"
+      sourceRef:
+        kind: HelmRepository
+        name: otel-helm
+        namespace: flux-system
+  install:
+    createNamespace: false
+  # Cluster-specific settings (ingest URL + credentials env vars, extra scrape jobs) live in the overlay patch.
+  values:
+    mode: daemonset
+    fullnameOverride: otel-collector
+    image:
+      repository: otel/opentelemetry-collector-k8s
+    presets:
+      # Adds k8s_attributes (pod, namespace, deployment, ...) to the `metrics` (OTLP) pipeline, plus its RBAC.
+      kubernetesAttributes:
+        enabled: true
+    clusterRole:
+      create: true
+      rules:
+        # kubelet /metrics and /metrics/cadvisor
+        - apiGroups: [""]
+          resources: ["nodes/metrics"]
+          verbs: ["get"]
+    # otel-collector.monitoring.svc:4317 (gRPC) / :4318 (HTTP) for apps; node-local traffic policy in daemonset mode.
+    service:
+      enabled: true
+    ports:
+      otlp:
+        hostPort: 0
+      otlp-http:
+        hostPort: 0
+      jaeger-compact:
+        enabled: false
+      jaeger-thrift:
+        enabled: false
+      jaeger-grpc:
+        enabled: false
+      zipkin:
+        enabled: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+    # Full collector config (not merged with the chart's defaults, so no traces/logs pipelines or jaeger/zipkin).
+    # Presets are still injected. ${env:...} placeholders are resolved by the collector at runtime.
+    alternateConfig:
+      extensions:
+        health_check:
+          endpoint: ${env:MY_POD_IP}:13133
+        basicauth/vm:
+          client_auth:
+            username: ${env:VM_INGEST_USERNAME}
+            password: ${env:VM_INGEST_PASSWORD}
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: ${env:MY_POD_IP}:4317
+            http:
+              endpoint: ${env:MY_POD_IP}:4318
+        # Prometheus exporters. Job names follow the vm-stack / kube-prometheus conventions so the bundled
+        # dashboards (and later the alerting/recording rules) match without changes.
+        prometheus:
+          config:
+            global:
+              scrape_interval: 30s
+            scrape_configs:
+              - job_name: otel-collector
+                static_configs:
+                  - targets: ["${env:MY_POD_IP}:8888"]
+              - job_name: node-exporter
+                static_configs:
+                  - targets: ["${env:OTEL_K8S_NODE_IP}:9100"]
+                metric_relabel_configs:
+                  - action: drop
+                    source_labels: [mountpoint]
+                    regex: /var/lib/kubelet/pods.+
+              # Single replica per cluster. With more than one node, scrape this from one collector only.
+              - job_name: kube-state-metrics
+                honor_labels: true
+                static_configs:
+                  - targets: ["kube-state-metrics.monitoring.svc:8080"]
+              - job_name: kubelet-cadvisor
+                scheme: https
+                metrics_path: /metrics/cadvisor
+                honor_timestamps: false
+                authorization:
+                  credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+                tls_config:
+                  ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                static_configs:
+                  - targets: ["${env:OTEL_K8S_NODE_IP}:10250"]
+                relabel_configs:
+                  - target_label: job
+                    replacement: kubelet
+                  - target_label: metrics_path
+                    replacement: /metrics/cadvisor
+                metric_relabel_configs:
+                  - action: labeldrop
+                    regex: id|name|uid
+              # Only volume stats from the kubelet's own metrics (used by the k8s-views dashboards).
+              - job_name: kubelet
+                scheme: https
+                authorization:
+                  credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+                tls_config:
+                  ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                static_configs:
+                  - targets: ["${env:OTEL_K8S_NODE_IP}:10250"]
+                relabel_configs:
+                  - target_label: metrics_path
+                    replacement: /metrics
+                metric_relabel_configs:
+                  - action: keep
+                    source_labels: [__name__]
+                    regex: kubelet_volume_stats_.*
+      processors:
+        memory_limiter:
+          check_interval: 5s
+          limit_percentage: 80
+          spike_limit_percentage: 25
+        # VictoriaMetrics does not turn service.name/service.instance.id back into job/instance and promotes every
+        # resource attribute to a label. Restore job/instance and drop the receiver's resource attributes so scraped
+        # series look exactly like a Prometheus scrape.
+        transform/prometheus:
+          error_mode: ignore
+          metric_statements:
+            - statements:
+                - set(datapoint.attributes["job"], resource.attributes["service.name"])
+                - set(datapoint.attributes["instance"], resource.attributes["service.instance.id"])
+            - statements:
+                - delete_matching_keys(resource.attributes, ".*")
+        batch: {}
+      exporters:
+        # VictoriaMetrics' recommended OTLP settings. The hub's vmauth adds cluster=<name> for these credentials.
+        otlp_http/victoriametrics:
+          metrics_endpoint: ${env:VM_INGEST_URL}
+          compression: gzip
+          encoding: proto
+          auth:
+            authenticator: basicauth/vm
+      service:
+        extensions: [health_check, basicauth/vm]
+        telemetry:
+          metrics:
+            readers:
+              - pull:
+                  exporter:
+                    prometheus:
+                      host: ${env:MY_POD_IP}
+                      port: 8888
+        pipelines:
+          # OTLP from applications (the preset prepends k8s_attributes).
+          metrics:
+            receivers: [otlp]
+            processors: [memory_limiter, batch]
+            exporters: [otlp_http/victoriametrics]
+          # Prometheus exporters.
+          metrics/scrape:
+            receivers: [prometheus]
+            processors: [memory_limiter, transform/prometheus, batch]
+            exporters: [otlp_http/victoriametrics]

@@ -1,0 +1,23 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-state-metrics
+  namespace: flux-system
+spec:
+  interval: 5m
+  releaseName: kube-state-metrics
+  targetNamespace: monitoring
+
+  chart:
+    spec:
+      chart: kube-state-metrics
+      version: "8.6.0"
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+        namespace: flux-system
+  install:
+    createNamespace: false
+  values:
+    # Service kube-state-metrics.monitoring.svc:8080, scraped by the OTel collector.
+    fullnameOverride: kube-state-metrics

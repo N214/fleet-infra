@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# This cluster runs both the monitoring agent and the hub. Another cluster would include only the agent,
+# with its own otel patch (ingest URL https://metrics.ntcloud.dev/opentelemetry/v1/metrics + its VMUser credentials).
+resources:
+  - ../../../base/monitoring/agent
+  - ../../../base/monitoring/hub
+  - namespace.yaml
+  - httproute-metrics.yaml
+patches:
+  - path: otel-patch.yaml
+    target:
+      kind: HelmRelease
+      name: otel
+  - path: vm-stack-patch.yaml
+    target:
+      kind: HelmRelease
+      name: vm-stack
+  # Kustomize drops `null` values in strategic-merge patches (the files above), so Helm "remove this chart
+  # default" values go in JSON6902 patches. Must stay after vm-stack-patch.yaml, which creates the parent keys.
+  # storage: null removes the chart's 20Gi PVC; VMSingle then uses an emptyDir (metrics are ephemeral by design).
+  - target:
+      kind: HelmRelease
+      name: vm-stack
+    patch: |-
+      - op: add
+        path: /spec/values/vmsingle/spec/storage
+        value: null
+namespace: monitoring

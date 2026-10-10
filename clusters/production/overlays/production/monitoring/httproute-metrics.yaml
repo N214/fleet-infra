@@ -1,0 +1,21 @@
+# Ingest endpoint for the OTel collectors of other clusters (tailnet-only via the Gateway's Tailscale device).
+# Write-only: vmauth requires a VMUser's credentials and only routes /opentelemetry/v1/metrics.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: metrics-ingest
+  namespace: monitoring
+spec:
+  parentRefs:
+    - name: gateway
+      namespace: kube-system
+  hostnames:
+    - metrics.ntcloud.dev
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /opentelemetry/
+      backendRefs:
+        - name: vmauth-vm-stack
+          port: 8427

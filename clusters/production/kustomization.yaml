@@ -5,3 +5,4 @@ resources:
   - overlays/production/cilium
   - overlays/production/cert-manager
   - overlays/production/tailscale-operator
+  - overlays/production/monitoring
