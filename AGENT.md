@@ -136,7 +136,11 @@ apps ──OTLP :4317/:4318──────────▶                    
   so `transform/prometheus` restores `job`/`instance` and drops the receiver's resource attributes. Scraped series
   then look exactly like a Prometheus scrape. Job names follow vm-stack conventions so its alert/recording rules
   will match later: `node-exporter`, `kube-state-metrics`, `kubelet` (plus `metrics_path`), `otel-collector`,
-  and `victoria-metrics` (hub only).
+  and `victoria-metrics` (hub only). Pods are discovered through the Kubernetes API, on the collector's own node
+  only, with `namespace`/`pod`/`node` labels added: `cilium-agent` (:9962), `hubble` (:9965), `cilium-operator`
+  (:9963) and `flux-system` (Flux controllers, :8080).
+- **Flux resource state:** kube-state-metrics' custom-resource-state config exports `gotk_resource_info`
+  (ready, suspended, revision) for Flux objects (`base/monitoring/agent/kube-state-metrics.yaml`).
 - **VictoriaMetrics** (`vm-stack-patch.yaml`): `-opentelemetry.usePrometheusNaming=true` converts OTLP names and
   labels to Prometheus style (`k8s.pod.name` → `k8s_pod_name`, unit and `_total` suffixes); names that are already
   Prometheus-style pass through unchanged. `-opentelemetry.promoteScopeMetadata=false` keeps `otel_scope_*`
@@ -152,11 +156,17 @@ apps ──OTLP :4317/:4318──────────▶                    
   sync-job downloads the dashboards from GitHub on every install and upgrade: Node Exporter Full,
   Kubernetes / Views / {Global, Namespaces, Nodes, Pods}, and VictoriaMetrics - single-node. Grafana isn't
   persistent either, so dashboards edited in the UI are lost on restart; keep them in Git.
-- **Extra dashboards** live in `base/monitoring/hub/dashboards/` (Kubernetes: API Server, CoreDNS; Cilium: agent,
-  operator, Hubble, Hubble L7 HTTP). A `configMapGenerator` makes one ConfigMap per JSON file, labeled
-  `grafana_dashboard: "1"`, with a `grafana_folder` annotation that the sidecar turns into a Grafana folder.
-  To add one, drop the JSON in a folder there and add a generator entry. Datasource references must be the
-  default datasource, uid `VictoriaMetrics`, or a datasource variable without a saved `current`.
+- **Dashboards shipped by a chart** stay with that chart, so they track its version. vm-stack ships the
+  Kubernetes / Views and Node Exporter dashboards. The Cilium HelmRelease ships the Cilium, Operator and Hubble
+  dashboards (`dashboards`, `operator.dashboards`, `hubble.metrics.dashboards`) into `monitoring` with
+  `grafana_folder: Cilium`.
+- **Custom dashboards** (no chart ships them) live in `base/monitoring/hub/dashboards/`: Kubernetes (API Server,
+  CoreDNS) and Flux (Cluster Stats and Control Plane, from `fluxcd/flux2-monitoring-example`). A
+  `configMapGenerator` makes one ConfigMap per JSON file, labeled `grafana_dashboard: "1"`, with a
+  `grafana_folder` annotation that the sidecar turns into a Grafana folder. To add one, drop the JSON in a folder
+  there and add a generator entry. Datasource references must be the default datasource, uid `VictoriaMetrics`,
+  or a datasource variable without a saved `current`. API Server and CoreDNS aren't scraped yet, so those two
+  stay empty.
 - **Apps** send OTLP to `http://otel-collector.monitoring.svc:4318` (HTTP) or `:4317` (gRPC).
 - **Alerting** isn't deployed yet: vmalert, Alertmanager, the default rules and the kube-prometheus dashboards
   (which need recording rules) are disabled.

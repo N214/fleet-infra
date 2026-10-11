@@ -136,6 +136,84 @@ spec:
                   - action: keep
                     source_labels: [__name__]
                     regex: kubelet_volume_stats_.*
+              # Pods on this node, discovered through the Kubernetes API (pods list/watch comes from the
+              # k8s_attributes preset). Each job keeps one named container port and adds namespace/pod/node, like a
+              # PodMonitor. Jobs whose pods don't exist in a cluster just find no targets.
+              - job_name: cilium-agent
+                kubernetes_sd_configs:
+                  - role: pod
+                    namespaces:
+                      names: [kube-system]
+                    selectors:
+                      - role: pod
+                        field: spec.nodeName=${env:OTEL_K8S_NODE_NAME}
+                relabel_configs:
+                  - action: keep
+                    source_labels: [__meta_kubernetes_pod_label_k8s_app, __meta_kubernetes_pod_container_port_name]
+                    regex: cilium;prometheus
+                  - source_labels: [__meta_kubernetes_namespace]
+                    target_label: namespace
+                  - source_labels: [__meta_kubernetes_pod_name]
+                    target_label: pod
+                  - source_labels: [__meta_kubernetes_pod_node_name]
+                    target_label: node
+              - job_name: hubble
+                kubernetes_sd_configs:
+                  - role: pod
+                    namespaces:
+                      names: [kube-system]
+                    selectors:
+                      - role: pod
+                        field: spec.nodeName=${env:OTEL_K8S_NODE_NAME}
+                relabel_configs:
+                  - action: keep
+                    source_labels: [__meta_kubernetes_pod_label_k8s_app, __meta_kubernetes_pod_container_port_name]
+                    regex: cilium;hubble-metrics
+                  - source_labels: [__meta_kubernetes_namespace]
+                    target_label: namespace
+                  - source_labels: [__meta_kubernetes_pod_name]
+                    target_label: pod
+                  - source_labels: [__meta_kubernetes_pod_node_name]
+                    target_label: node
+              - job_name: cilium-operator
+                kubernetes_sd_configs:
+                  - role: pod
+                    namespaces:
+                      names: [kube-system]
+                    selectors:
+                      - role: pod
+                        field: spec.nodeName=${env:OTEL_K8S_NODE_NAME}
+                relabel_configs:
+                  - action: keep
+                    source_labels: [__meta_kubernetes_pod_label_io_cilium_app, __meta_kubernetes_pod_container_port_name]
+                    regex: operator;prometheus
+                  - source_labels: [__meta_kubernetes_namespace]
+                    target_label: namespace
+                  - source_labels: [__meta_kubernetes_pod_name]
+                    target_label: pod
+                  - source_labels: [__meta_kubernetes_pod_node_name]
+                    target_label: node
+                  # The Cilium Operator dashboard filters on io_cilium_app="operator".
+                  - source_labels: [__meta_kubernetes_pod_label_io_cilium_app]
+                    target_label: io_cilium_app
+              - job_name: flux-system
+                kubernetes_sd_configs:
+                  - role: pod
+                    namespaces:
+                      names: [flux-system]
+                    selectors:
+                      - role: pod
+                        field: spec.nodeName=${env:OTEL_K8S_NODE_NAME}
+                relabel_configs:
+                  - action: keep
+                    source_labels: [__meta_kubernetes_pod_label_app, __meta_kubernetes_pod_container_port_name]
+                    regex: (helm|kustomize|notification|source|image-automation|image-reflector)-controller;http-prom
+                  - source_labels: [__meta_kubernetes_namespace]
+                    target_label: namespace
+                  - source_labels: [__meta_kubernetes_pod_name]
+                    target_label: pod
+                  - source_labels: [__meta_kubernetes_pod_node_name]
+                    target_label: node
       processors:
         memory_limiter:
           check_interval: 5s

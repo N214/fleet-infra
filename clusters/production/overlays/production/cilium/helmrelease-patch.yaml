@@ -37,14 +37,16 @@ spec:
           - flow
           - "port-distribution"
           - icmp
-          - "httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction;sourceContext=workload-name|reserved-identity;destinationContext=workload-name|reserved-identity"
+          # No source_ip/destination_ip: per-IP labels make one series per client address.
+          - "httpV2:exemplars=true;labelsContext=source_namespace,source_workload,destination_namespace,destination_workload,traffic_direction;sourceContext=workload-name|reserved-identity;destinationContext=workload-name|reserved-identity"
         serviceMonitor:
           enabled: false
-      dashboards:
-        enabled: true
-        namespace: monitoring
-        annotations:
-          grafana_folder: "monitoring"
+        # Hubble dashboards as ConfigMaps for the Grafana sidecar (monitoring namespace, Cilium folder).
+        dashboards:
+          enabled: true
+          namespace: monitoring
+          annotations:
+            grafana_folder: Cilium
     ipam:
       operator:
         clusterPoolIPv4PodCIDRList: ["10.0.0.0/16"]
@@ -70,6 +72,11 @@ spec:
     operator:
       prometheus:
         enabled: true
+      dashboards:
+        enabled: true
+        namespace: monitoring
+        annotations:
+          grafana_folder: Cilium
       replicas: 1
     nodeinit:
       enabled: true
@@ -89,7 +96,14 @@ spec:
       config:
         enabled: false
         domain: mesh.cilium.io
+    # Agent metrics on :9962, scraped by the OTel collector (base/monitoring/agent/otel.yaml). No ServiceMonitor:
+    # nothing here runs Prometheus or vmagent, and one would double-scrape if vmagent is added later.
     prometheus:
-      enabled: false
+      enabled: true
       serviceMonitor:
-        enabled: true
+        enabled: false
+    dashboards:
+      enabled: true
+      namespace: monitoring
+      annotations:
+        grafana_folder: Cilium

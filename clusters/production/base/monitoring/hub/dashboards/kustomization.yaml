@@ -1,10 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Extra Grafana dashboards, one ConfigMap per JSON file (same pattern as the old apps/monitoring Helm helper).
+# Custom Grafana dashboards, one ConfigMap per JSON file (same pattern as the old apps/monitoring Helm helper).
 # The Grafana sidecar loads ConfigMaps labeled grafana_dashboard=1 and puts each one in the folder named by its
-# grafana_folder annotation (enabled in vm-stack-patch.yaml). Files are copies with the datasource normalized:
-# datasource variables have no saved `current` (Grafana picks the default) and legacy "prometheus" string
-# datasources point at uid VictoriaMetrics. The Kubernetes / Views dashboards come from the vm-stack chart instead.
+# grafana_folder annotation (enabled in vm-stack-patch.yaml). Only dashboards that no chart ships belong here:
+# Cilium/Hubble dashboards come from the Cilium chart, Kubernetes / Views and Node Exporter from vm-stack.
+# Datasource references must use the default datasource (uid VictoriaMetrics) or a datasource variable without a
+# saved `current`; the copies below were normalized that way.
+#   kubernetes/: dotdc/grafana-dashboards-kubernetes (k8s-system-api-server, k8s-system-coredns)
+#   flux/: fluxcd/flux2-monitoring-example@7ab65dc monitoring/configs/dashboards
 namespace: monitoring
 configMapGenerator:
   - name: grafana-dashboard-api-server
@@ -18,20 +21,14 @@ configMapGenerator:
   - name: grafana-dashboard-coredns
     files: [kubernetes/coredns.json]
     options: *kubernetes
-  - name: grafana-dashboard-cilium-agent
-    files: [cilium/cilium-agent.json]
-    options: &cilium
+  - name: grafana-dashboard-flux-cluster
+    files: [flux/cluster.json]
+    options: &flux
       disableNameSuffixHash: true
       labels:
         grafana_dashboard: "1"
       annotations:
-        grafana_folder: Cilium
-  - name: grafana-dashboard-cilium-operator
-    files: [cilium/cilium-operator.json]
-    options: *cilium
-  - name: grafana-dashboard-hubble
-    files: [cilium/hubble.json]
-    options: *cilium
-  - name: grafana-dashboard-hubble-l7-http
-    files: [cilium/hubble-l7-http.json]
-    options: *cilium
+        grafana_folder: Flux
+  - name: grafana-dashboard-flux-control-plane
+    files: [flux/control-plane.json]
+    options: *flux
