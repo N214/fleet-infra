@@ -3,3 +3,4 @@ kind: Kustomization
 # Monitoring hub: deployed in ONE cluster. Stores metrics from every cluster's agent and serves Grafana.
 resources:
   - vm-stack.yaml
+  - dashboards

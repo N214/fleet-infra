@@ -113,6 +113,10 @@ spec:
         dashboards:
           # Cluster selector on the dashboards (every series carries cluster=<name>).
           multicluster: true
+          # Folder per grafana_folder annotation (base/monitoring/hub/dashboards); unannotated ones go to General.
+          folderAnnotation: grafana_folder
+          provider:
+            foldersFromFilesStructure: true
       grafana.ini:
         server:
           root_url: https://grafana.ntcloud.dev

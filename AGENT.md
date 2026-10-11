@@ -152,6 +152,11 @@ apps ──OTLP :4317/:4318──────────▶                    
   sync-job downloads the dashboards from GitHub on every install and upgrade: Node Exporter Full,
   Kubernetes / Views / {Global, Namespaces, Nodes, Pods}, and VictoriaMetrics - single-node. Grafana isn't
   persistent either, so dashboards edited in the UI are lost on restart; keep them in Git.
+- **Extra dashboards** live in `base/monitoring/hub/dashboards/` (Kubernetes: API Server, CoreDNS; Cilium: agent,
+  operator, Hubble, Hubble L7 HTTP). A `configMapGenerator` makes one ConfigMap per JSON file, labeled
+  `grafana_dashboard: "1"`, with a `grafana_folder` annotation that the sidecar turns into a Grafana folder.
+  To add one, drop the JSON in a folder there and add a generator entry. Datasource references must be the
+  default datasource, uid `VictoriaMetrics`, or a datasource variable without a saved `current`.
 - **Apps** send OTLP to `http://otel-collector.monitoring.svc:4318` (HTTP) or `:4317` (gRPC).
 - **Alerting** isn't deployed yet: vmalert, Alertmanager, the default rules and the kube-prometheus dashboards
   (which need recording rules) are disabled.
