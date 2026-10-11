@@ -157,6 +157,9 @@ spec:
                     target_label: pod
                   - source_labels: [__meta_kubernetes_pod_node_name]
                     target_label: node
+                  # The Cilium Metrics dashboard filters on k8s_app="cilium" (Cilium's ServiceMonitor adds it too).
+                  - source_labels: [__meta_kubernetes_pod_label_k8s_app]
+                    target_label: k8s_app
               - job_name: hubble
                 kubernetes_sd_configs:
                   - role: pod
